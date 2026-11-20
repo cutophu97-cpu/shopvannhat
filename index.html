@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Theo dõi Dòng tiền Bán Acc Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .card { transition: transform 0.15s ease; }
+    .card:hover { transform: translateY(-2px); }
+    .status-unsold { background: #fef3c7; color: #92400e; }
+    .status-sold { background: #d1fae5; color: #065f46; }
+    .profit-positive { color: #059669; }
+    .profit-negative { color: #dc2626; }
+    table th { position: sticky; top: 0; background: #1e293b; z-index: 10; }
+    .modal-backdrop { background: rgba(0,0,0,0.5); }
+    input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <!-- Header -->
+  <header class="bg-slate-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-gamepad text-2xl text-emerald-400"></i>
+        <div>
+          <h1 class="text-xl font-bold">Theo dõi Dòng tiền Bán Acc Game</h1>
+          <p class="text-slate-300 text-sm">Quản lý thu chi • Lợi nhuận • Sao lưu dễ dàng</p>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button onclick="exportData()" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+          <i class="fas fa-download"></i> Sao lưu
+        </button>
+        <label class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer">
+          <i class="fas fa-upload"></i> Khôi phục
+          <input type="file" accept=".json" onchange="importData(event)" class="hidden" />
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <!-- Stats Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div class="card bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+        <p class="text-slate-500 text-xs font-medium uppercase">Doanh thu hôm nay</p>
+        <p id="revToday" class="text-xl font-bold text-slate-800 mt-1">0 ₫</p>
+      </div>
+      <div class="card bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500">
+        <p class="text-slate-500 text-xs font-medium uppercase">Doanh thu tháng này</p>
+        <p id="revMonth" class="text-xl font-bold text-slate-800 mt-1">0 ₫</p>
+      </div>
+      <div class="card bg-white rounded-xl shadow p-4 border-l-4 border-purple-500">
+        <p class="text-slate-500 text-xs font-medium uppercase">Doanh thu năm nay</p>
+        <p id="revYear" class="text-xl font-bold text-slate-800 mt-1">0 ₫</p>
+      </div>
+      <div class="card bg-white rounded-xl shadow p-4 border-l-4 border-emerald-500">
+        <p class="text-slate-500 text-xs font-medium uppercase">Lợi nhuận ròng</p>
+        <p id="netProfit" class="text-xl font-bold text-emerald-600 mt-1">0 ₫</p>
+      </div>
+      <div class="card bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+        <p class="text-slate-500 text-xs font-medium uppercase">Tổng chi mua</p>
+        <p id="totalCost" class="text-xl font-bold text-slate-800 mt-1">0 ₫</p>
+      </div>
+      <div class="card bg-white rounded-xl shadow p-4 border-l-4 border-rose-500">
+        <p class="text-slate-500 text-xs font-medium uppercase">Acc đã bán (năm)</p>
+        <p id="soldYear" class="text-xl font-bold text-slate-800 mt-1">0</p>
+      </div>
+    </section>
+
+    <!-- Quick Stats Row -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+        <div>
+          <p class="text-slate-500 text-sm">Acc đã bán hôm nay</p>
+          <p id="soldToday" class="text-2xl font-bold text-slate-800">0</p>
+        </div>
+        <i class="fas fa-calendar-day text-3xl text-blue-200"></i>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+        <div>
+          <p class="text-slate-500 text-sm">Acc đã bán tháng này</p>
+          <p id="soldMonth" class="text-2xl font-bold text-slate-800">0</p>
+        </div>
+        <i class="fas fa-calendar-alt text-3xl text-indigo-200"></i>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+        <div>
+          <p class="text-slate-500 text-sm">Acc chưa bán</p>
+          <p id="unsoldCount" class="text-2xl font-bold text-amber-600">0</p>
+        </div>
+        <i class="fas fa-box-open text-3xl text-amber-200"></i>
+      </div>
+    </section>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="flex border-b overflow-x-auto">
+        <button onclick="switchTab('add')" id="tab-add" class="tab-btn px-5 py-3 font-medium text-sm whitespace-nowrap border-b-2 border-emerald-500 text-emerald-600">
+          <i class="fas fa-plus-circle mr-1"></i> Thêm Acc
+        </button>
+        <button onclick="switchTab('list')" id="tab-list" class="tab-btn px-5 py-3 font-medium text-sm whitespace-nowrap text-slate-600 hover:text-slate-800">
+          <i class="fas fa-list mr-1"></i> Danh sách Acc
+        </button>
+        <button onclick="switchTab('search')" id="tab-search" class="tab-btn px-5 py-3 font-medium text-sm whitespace-nowrap text-slate-600 hover:text-slate-800">
+          <i class="fas fa-search mr-1"></i> Tra cứu
+        </button>
+        <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-5 py-3 font-medium text-sm whitespace-nowrap text-slate-600 hover:text-slate-800">
+          <i class="fas fa-chart-bar mr-1"></i> Chi tiết Doanh thu
+        </button>
+      </div>
+
+      <!-- Tab: Thêm Acc -->
+      <div id="panel-add" class="p-5">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">Nhập Acc mới</h2>
+        <form id="addForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Mã số (MS) <span class="text-red-500">*</span></label>
+            <input type="text" id="ms" required placeholder="VD: ACC-001 hoặc tự đặt" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Giá thu (VND) <span class="text-red-500">*</span></label>
+            <input type="number" id="purchasePrice" required min="0" step="1000" placeholder="VD: 150000" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Ngày thu</label>
+            <input type="date" id="purchaseDate" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Game / Loại</label>
+            <input type="text" id="game" placeholder="VD: Liên Quân, Free Fire..." class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Ghi chú</label>
+            <input type="text" id="notes" placeholder="Thông tin thêm (rank, skin, ...)" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+          </div>
+          <div class="md:col-span-3">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2">
+              <i class="fas fa-save"></i> Lưu Acc
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab: Danh sách -->
+      <div id="panel-list" class="hidden">
+        <div class="p-4 border-b flex flex-wrap gap-3 items-center justify-between bg-slate-50">
+          <div class="flex flex-wrap gap-2 items-center">
+            <select id="filterStatus" onchange="renderList()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <option value="all">Tất cả trạng thái</option>
+              <option value="unsold">Chưa bán</option>
+              <option value="sold">Đã bán</option>
+            </select>
+            <input type="text" id="listSearch" oninput="renderList()" placeholder="Lọc theo MS / Game..." class="border border-slate-300 rounded-lg px-3 py-2 text-sm w-48" />
+          </div>
+          <div class="flex gap-2">
+            <button onclick="deleteSelected()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+              <i class="fas fa-trash"></i> Xóa đã chọn
+            </button>
+            <button onclick="selectAllVisible()" class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Chọn tất cả
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto max-h-[520px]">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-800 text-white">
+              <tr>
+                <th class="px-3 py-3 text-left w-10"><input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)" /></th>
+                <th class="px-3 py-3 text-left">MS</th>
+                <th class="px-3 py-3 text-left">Game</th>
+                <th class="px-3 py-3 text-right">Giá thu</th>
+                <th class="px-3 py-3 text-right">Giá bán</th>
+                <th class="px-3 py-3 text-right">Lời/Lỗ</th>
+                <th class="px-3 py-3 text-center">Trạng thái</th>
+                <th class="px-3 py-3 text-left">Ngày thu</th>
+                <th class="px-3 py-3 text-left">Ngày bán</th>
+                <th class="px-3 py-3 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="accTableBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+        <div class="p-3 text-sm text-slate-500 border-t" id="listInfo"></div>
+      </div>
+
+      <!-- Tab: Tra cứu -->
+      <div id="panel-search" class="hidden p-5">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">Tra cứu Acc theo Mã số</h2>
+        <div class="flex gap-3 max-w-lg">
+          <input type="text" id="searchMs" placeholder="Nhập mã số (MS)..." class="flex-1 border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none" />
+          <button onclick="doSearch()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-medium">
+            <i class="fas fa-search"></i> Tìm
+          </button>
+        </div>
+        <div id="searchResult" class="mt-6"></div>
+      </div>
+
+      <!-- Tab: Chi tiết Doanh thu -->
+      <div id="panel-stats" class="hidden p-5">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">Chi tiết Acc đã bán</h2>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <select id="statsPeriod" onchange="renderSoldDetail()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+            <option value="today">Hôm nay</option>
+            <option value="month">Tháng này</option>
+            <option value="year" selected>Năm nay</option>
+            <option value="all">Tất cả thời gian</option>
+          </select>
+        </div>
+        <div class="overflow-x-auto max-h-[480px]">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-800 text-white">
+              <tr>
+                <th class="px-3 py-3 text-left">MS</th>
+                <th class="px-3 py-3 text-left">Game</th>
+                <th class="px-3 py-3 text-right">Giá thu</th>
+                <th class="px-3 py-3 text-right">Giá bán</th>
+                <th class="px-3 py-3 text-right">Lợi nhuận</th>
+                <th class="px-3 py-3 text-left">Ngày bán</th>
+                <th class="px-3 py-3 text-left">Người mua</th>
+              </tr>
+            </thead>
+            <tbody id="soldDetailBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+        <div id="soldDetailSummary" class="mt-4 p-4 bg-slate-50 rounded-lg text-sm"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal: Đánh dấu đã bán -->
+  <div id="sellModal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <h3 class="text-lg font-bold mb-4 text-slate-800">Đánh dấu đã bán</h3>
+      <p class="text-sm text-slate-600 mb-4">MS: <strong id="sellMs"></strong></p>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Giá bán (VND) <span class="text-red-500">*</span></label>
+          <input type="number" id="sellPrice" min="0" step="1000" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Ngày bán</label>
+          <input type="date" id="sellDate" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Người mua (tùy chọn)</label>
+          <input type="text" id="buyer" placeholder="Tên / SĐT / FB..." class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none" />
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button onclick="confirmSell()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-medium">Xác nhận bán</button>
+        <button onclick="closeSellModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-2.5 rounded-lg font-medium">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-5 py-3 rounded-lg shadow-lg text-white font-medium text-sm"></div>
+
+  <script>
+    const STORAGE_KEY = 'acc_game_tracker_v1';
+    let accounts = [];
+    let currentSellId = null;
+
+    // ========== UTIL ==========
+    function formatMoney(n) {
+      if (n == null || isNaN(n)) return '0 ₫';
+      return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫';
+    }
+
+    function todayStr() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function showToast(msg, type = 'success') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = `fixed bottom-6 right-6 z-50 px-5 py-3 rounded-lg shadow-lg text-white font-medium text-sm ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 2800);
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        accounts = raw ? JSON.parse(raw) : [];
+      } catch {
+        accounts = [];
+      }
+    }
+
+    // ========== DATE HELPERS ==========
+    function isSameDay(d1, d2) {
+      return d1 === d2;
+    }
+    function isSameMonth(dateStr) {
+      const d = new Date(dateStr);
+      const now = new Date();
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }
+    function isSameYear(dateStr) {
+      return new Date(dateStr).getFullYear() === new Date().getFullYear();
+    }
+
+    // ========== STATS ==========
+    function updateStats() {
+      const sold = accounts.filter(a => a.status === 'sold');
+      const unsold = accounts.filter(a => a.status === 'unsold');
+
+      let revToday = 0, revMonth = 0, revYear = 0;
+      let soldToday = 0, soldMonth = 0, soldYear = 0;
+      let totalCost = 0, totalRevenue = 0;
+
+      accounts.forEach(a => {
+        totalCost += a.purchasePrice || 0;
+      });
+
+      sold.forEach(a => {
+        const price = a.sellPrice || 0;
+        totalRevenue += price;
+        if (isSameDay(a.sellDate, todayStr())) {
+          revToday += price;
+          soldToday++;
+        }
+        if (isSameMonth(a.sellDate)) {
+          revMonth += price;
+          soldMonth++;
+        }
+        if (isSameYear(a.sellDate)) {
+          revYear += price;
+          soldYear++;
+        }
+      });
+
+      const net = totalRevenue - totalCost;
+
+      document.getElementById('revToday').textContent = formatMoney(revToday);
+      document.getElementById('revMonth').textContent = formatMoney(revMonth);
+      document.getElementById('revYear').textContent = formatMoney(revYear);
+      document.getElementById('netProfit').textContent = formatMoney(net);
+      document.getElementById('netProfit').className = `text-xl font-bold mt-1 ${net >= 0 ? 'text-emerald-600' : 'text-red-600'}`;
+      document.getElementById('totalCost').textContent = formatMoney(totalCost);
+      document.getElementById('soldYear').textContent = soldYear;
+      document.getElementById('soldToday').textContent = soldToday;
+      document.getElementById('soldMonth').textContent = soldMonth;
+      document.getElementById('unsoldCount').textContent = unsold.length;
+    }
+
+    // ========== RENDER LIST ==========
+    function renderList() {
+      const status = document.getElementById('filterStatus').value;
+      const q = (document.getElementById('listSearch').value || '').toLowerCase().trim();
+
+      let list = [...accounts];
+      if (status !== 'all') list = list.filter(a => a.status === status);
+      if (q) {
+        list = list.filter(a =>
+          (a.ms || '').toLowerCase().includes(q) ||
+          (a.game || '').toLowerCase().includes(q) ||
+          (a.notes || '').toLowerCase().includes(q)
+        );
+      }
+
+      // Sort: unsold first, then by purchaseDate desc
+      list.sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'unsold' ? -1 : 1;
+        return (b.purchaseDate || '').localeCompare(a.purchaseDate || '');
+      });
+
+      const tbody = document.getElementById('accTableBody');
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">Chưa có dữ liệu</td></tr>`;
+      } else {
+        list.forEach(a => {
+          const profit = a.status === 'sold' ? (a.sellPrice - a.purchasePrice) : null;
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="px-3 py-2.5"><input type="checkbox" class="row-check" data-id="${a.id}" /></td>
+            <td class="px-3 py-2.5 font-medium text-slate-800">${escapeHtml(a.ms)}</td>
+            <td class="px-3 py-2.5 text-slate-600">${escapeHtml(a.game || '—')}</td>
+            <td class="px-3 py-2.5 text-right">${formatMoney(a.purchasePrice)}</td>
+            <td class="px-3 py-2.5 text-right">${a.status === 'sold' ? formatMoney(a.sellPrice) : '—'}</td>
+            <td class="px-3 py-2.5 text-right font-medium ${profit != null ? (profit >= 0 ? 'profit-positive' : 'profit-negative') : ''}">
+              ${profit != null ? formatMoney(profit) : '—'}
+            </td>
+            <td class="px-3 py
